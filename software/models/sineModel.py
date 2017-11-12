@@ -220,3 +220,41 @@ def sineModelSynth(tfreq, tmag, tphase, N, H, fs):
 	y = np.delete(y, range(y.size-hN, y.size))              # delete half of the last window 
 	return y
 	
+def sineModelSynth_uptoj(tfreq, tmag, tphase, N, H, fs, j):
+	"""
+	Synthesis of a sound using the sinusoidal model
+	Synthesises only up to the jth harmonic
+	tfreq,tmag,tphase: frequencies, magnitudes and phases of sinusoids
+	N: synthesis FFT size, H: hop size, fs: sampling rate
+	returns y: output array sound
+	"""
+	
+	hN = N/2                                                # half of FFT size for synthesis
+	L = tfreq.shape[0]                                      # number of frames
+	pout = 0                                                # initialize output sound pointer         
+	ysize = H*(L+3)                                         # output sound size
+	y = np.zeros(ysize)                                     # initialize output array
+	sw = np.zeros(N)                                        # initialize synthesis window
+	ow = triang(2*H)                                        # triangular window
+	sw[hN-H:hN+H] = ow                                      # add triangular window
+	bh = blackmanharris(N)                                  # blackmanharris window
+	bh = bh / sum(bh)                                       # normalized blackmanharris window
+	sw[hN-H:hN+H] = sw[hN-H:hN+H]/bh[hN-H:hN+H]             # normalized synthesis window
+	lastytfreq = tfreq[0,:]                                 # initialize synthesis frequencies
+	ytphase = 2*np.pi*np.random.rand(tfreq[0,:].size)       # initialize synthesis phases 
+	for l in range(L):                                      # iterate over all frames
+		if (tphase.size > 0):                                 # if no phases generate them
+			ytphase = tphase[l,:] 
+		else:
+			ytphase += (np.pi*(lastytfreq+tfreq[l,:])/fs)*H     # propagate phases
+		Y = UF.genSpecSines(tfreq[l,0:j+1], tmag[l,0:j+1], ytphase[0:j+1], N, fs)  # generate sines in the spectrum  
+		                                                      # Only generate up to the jth harmonic       
+		lastytfreq = tfreq[l,:]                               # save frequency for phase propagation
+		ytphase = ytphase % (2*np.pi)                         # make phase inside 2*pi
+		yw = np.real(fftshift(ifft(Y)))                       # compute inverse FFT
+		y[pout:pout+N] += sw*yw                               # overlap-add and apply a synthesis window
+		pout += H                                             # advance sound pointer
+	y = np.delete(y, range(hN))                             # delete half of first window
+	y = np.delete(y, range(y.size-hN, y.size))              # delete half of the last window 
+	return y
+	
