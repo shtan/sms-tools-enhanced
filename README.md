@@ -1,6 +1,11 @@
-sms-tools
-========= 
+sms-tools-enhanced
+==================
 
+Originally forked from https://github.com/MTG/sms-tools
+
+In this repo I have added some extra functions and more control over certain parameters.
+
+Readme from original repo:
 
 Sound analysis/synthesis tools for music applications written in python (with a bit of C) plus complementary lecture materials.
 
