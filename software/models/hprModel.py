@@ -10,7 +10,7 @@ import dftModel as DFT
 import utilFunctions as UF
 import sineModel as SM
 
-def hprModelAnal(x, fs, w, N, H, t, minSineDur, nH, minf0, maxf0, f0et, harmDevSlope):
+def hprModelAnal(x, fs, w, N, H, t, minSineDur, nH, minf0, maxf0, f0et, harmDevSlope, skimpeaks=0):
 	"""Analysis of a sound using the harmonic plus residual model
 	x: input sound, fs: sampling rate, w: analysis window; N: FFT size, t: threshold in negative dB, 
 	minSineDur: minimum duration of sinusoidal tracks
@@ -18,10 +18,12 @@ def hprModelAnal(x, fs, w, N, H, t, minSineDur, nH, minf0, maxf0, f0et, harmDevS
 	maxf0: maximum fundamental frequency in sound; f0et: maximum error accepted in f0 detection algorithm                                                                                            
 	harmDevSlope: allowed deviation of harmonic tracks, higher harmonics have higher allowed deviation
 	returns hfreq, hmag, hphase: harmonic frequencies, magnitude and phases; xr: residual signal
+        skimpeaks: boolean. If true, candidate peaks are limited to the range n*minf0 - n*maxf0, where n is an integer from 0 to 100.
+            This reduces the error of the Twm algorithm, allowing one to input a lower f0et.
 	"""
 
 	# perform harmonic analysis
-	hfreq, hmag, hphase = HM.harmonicModelAnal(x, fs, w, N, H, t, nH, minf0, maxf0, f0et, harmDevSlope, minSineDur)
+	hfreq, hmag, hphase = HM.harmonicModelAnal(x, fs, w, N, H, t, nH, minf0, maxf0, f0et, harmDevSlope, minSineDur, skimpeaks)
 	#Ns = 512
 	xr = UF.sineSubtraction(x, N, H, hfreq, hmag, hphase, fs)    	# subtract sinusoids from original sound
 	return hfreq, hmag, hphase, xr

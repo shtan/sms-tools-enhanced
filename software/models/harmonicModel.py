@@ -9,13 +9,15 @@ import dftModel as DFT
 import utilFunctions as UF
 import sineModel as SM
 
-def f0Detection(x, fs, w, N, H, t, minf0, maxf0, f0et):
+def f0Detection(x, fs, w, N, H, t, minf0, maxf0, f0et, skimpeaks):
 	"""
 	Fundamental frequency detection of a sound using twm algorithm
 	x: input sound; fs: sampling rate; w: analysis window; 
 	N: FFT size; t: threshold in negative dB, 
 	minf0: minimum f0 frequency in Hz, maxf0: maximim f0 frequency in Hz, 
 	f0et: error threshold in the f0 detection (ex: 5),
+        skimpeaks: boolean. If true, candidate peaks are limited to the range n*minf0 - n*maxf0, where n is an integer from 0 to 100.
+            This reduces the error of the Twm algorithm, allowing one to input a lower f0et.
 	returns f0: fundamental frequency
 	"""
 	if (minf0 < 0):                                            # raise exception if minf0 is smaller than 0
@@ -45,7 +47,7 @@ def f0Detection(x, fs, w, N, H, t, minf0, maxf0, f0et):
 		ploc = UF.peakDetection(mX, t)                           # detect peak locations   
 		iploc, ipmag, ipphase = UF.peakInterp(mX, pX, ploc)      # refine peak values
 		ipfreq = fs * iploc/N                                    # convert locations to Hez
-		f0t = UF.f0Twm(ipfreq, ipmag, f0et, minf0, maxf0, f0stable)  # find f0
+		f0t = UF.f0Twm(ipfreq, ipmag, f0et, minf0, maxf0, t, f0stable, skimpeaks)  # find f0
 		if ((f0stable==0)&(f0t>0)) \
 				or ((f0stable>0)&(np.abs(f0stable-f0t)<f0stable/5.0)):
 			f0stable = f0t                                         # consider a stable f0 if it is close to the previous one
@@ -56,7 +58,7 @@ def f0Detection(x, fs, w, N, H, t, minf0, maxf0, f0et):
 	return f0
 
 
-def harmonicDetection(pfreq, pmag, pphase, f0, nH, hfreqp, fs, harmDevSlope=0.01):
+def harmonicDetection(pfreq, pmag, pphase, f0, nH, hfreqp, fs, t, harmDevSlope=0.01):
 	"""
 	Detection of the harmonics of a frame from a set of spectral peaks using f0
 	to the ideal harmonic series built on top of a fundamental frequency
@@ -70,7 +72,7 @@ def harmonicDetection(pfreq, pmag, pphase, f0, nH, hfreqp, fs, harmDevSlope=0.01
 	if (f0<=0):                                          # if no f0 return no harmonics
 		return np.zeros(nH), np.zeros(nH), np.zeros(nH)
 	hfreq = np.zeros(nH)                                 # initialize harmonic frequencies
-	hmag = np.zeros(nH)-100                              # initialize harmonic magnitudes
+	hmag = np.zeros(nH) + t - 5.                              # initialize harmonic magnitudes
 	hphase = np.zeros(nH)                                # initialize harmonic phases
 	hf = f0*np.arange(1, nH+1)                           # initialize harmonic frequencies
 	hi = 0                                               # initialize harmonic index
@@ -136,7 +138,7 @@ def harmonicModel(x, fs, w, N, t, nH, minf0, maxf0, f0et):
 			f0stable = f0t                                     # consider a stable f0 if it is close to the previous one
 		else:
 			f0stable = 0
-		hfreq, hmag, hphase = harmonicDetection(ipfreq, ipmag, ipphase, f0t, nH, hfreqp, fs) # find harmonics
+		hfreq, hmag, hphase = harmonicDetection(ipfreq, ipmag, ipphase, f0t, nH, hfreqp, fs, t) # find harmonics
 		hfreqp = hfreq
 	#-----synthesis-----
 		Yh = UF.genSpecSines(hfreq, hmag, hphase, Ns, fs)     # generate spec sines          
@@ -149,7 +151,7 @@ def harmonicModel(x, fs, w, N, t, nH, minf0, maxf0, f0et):
 	y = np.delete(y, range(y.size-hM1, y.size))             # add zeros at the end to analyze last sample
 	return y
 
-def harmonicModelAnal(x, fs, w, N, H, t, nH, minf0, maxf0, f0et, harmDevSlope=0.01, minSineDur=.02):
+def harmonicModelAnal(x, fs, w, N, H, t, nH, minf0, maxf0, f0et, harmDevSlope=0.01, minSineDur=.02, skimpeaks=0):
 	"""
 	Analysis of a sound using the sinusoidal harmonic model
 	x: input sound; fs: sampling rate, w: analysis window; N: FFT size (minimum 512); t: threshold in negative dB, 
@@ -180,13 +182,13 @@ def harmonicModelAnal(x, fs, w, N, H, t, nH, minf0, maxf0, f0et, harmDevSlope=0.
 		ploc = UF.peakDetection(mX, t)                        # detect peak locations   
 		iploc, ipmag, ipphase = UF.peakInterp(mX, pX, ploc)   # refine peak values
 		ipfreq = fs * iploc/N                                 # convert locations to Hz
-		f0t = UF.f0Twm(ipfreq, ipmag, f0et, minf0, maxf0, f0stable)  # find f0
+		f0t = UF.f0Twm(ipfreq, ipmag, f0et, minf0, maxf0, t, f0stable, skimpeaks)  # find f0
 		if ((f0stable==0)&(f0t>0)) \
 				or ((f0stable>0)&(np.abs(f0stable-f0t)<f0stable/5.0)):
 			f0stable = f0t                                      # consider a stable f0 if it is close to the previous one
 		else:
 			f0stable = 0
-		hfreq, hmag, hphase = harmonicDetection(ipfreq, ipmag, ipphase, f0t, nH, hfreqp, fs, harmDevSlope) # find harmonics
+		hfreq, hmag, hphase = harmonicDetection(ipfreq, ipmag, ipphase, f0t, nH, hfreqp, fs, t, harmDevSlope) # find harmonics
 		hfreqp = hfreq
 		if pin == hM1:                                        # first frame
 			xhfreq = np.array([hfreq])
@@ -197,6 +199,7 @@ def harmonicModelAnal(x, fs, w, N, H, t, nH, minf0, maxf0, f0et, harmDevSlope=0.
 			xhmag = np.vstack((xhmag, np.array([hmag])))
 			xhphase = np.vstack((xhphase, np.array([hphase])))
 		pin += H                                              # advance sound pointer
-	xhfreq = SM.cleaningSineTracks(xhfreq, round(fs*minSineDur/H))     # delete tracks shorter than minSineDur
+	xhfreq, xhmag = SM.cleaningSineTracks(xhfreq, xhmag, round(fs*minSineDur/H))     # delete tracks shorter than minSineDur
+	xhmag[np.where(xhmag == 0.)] = t - np.array(5.)
 	return xhfreq, xhmag, xhphase
 

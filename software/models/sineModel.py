@@ -65,7 +65,7 @@ def sineTracking(pfreq, pmag, pphase, tfreq, freqDevOffset=20, freqDevSlope=0.01
 			tphasen = np.append(tphasen, pphaset[peaksleft[emptyt.size:]])
 	return tfreqn, tmagn, tphasen
 
-def cleaningSineTracks(tfreq, minTrackLength=3):
+def cleaningSineTracks(tfreq, tmag, minTrackLength=3):
 	"""
 	Delete short fragments of a collection of sinusoidal tracks 
 	tfreq: frequency of tracks
@@ -79,6 +79,7 @@ def cleaningSineTracks(tfreq, minTrackLength=3):
 	nTracks = tfreq[0,:].size                               # number of tracks in a frame
 	for t in range(nTracks):                                # iterate over all tracks
 		trackFreqs = tfreq[:,t]                               # frequencies of one track
+		trackMags = tmag[:,t]                                 # magnitudes of one track
 		trackBegs = np.nonzero((trackFreqs[:nFrames-1] <= 0)  # begining of track contours
 								& (trackFreqs[1:]>0))[0] + 1
 		if trackFreqs[0]>0:
@@ -91,7 +92,8 @@ def cleaningSineTracks(tfreq, minTrackLength=3):
 		for i,j in zip(trackBegs, trackLengths):              # delete short track contours
 			if j <= minTrackLength:
 				trackFreqs[i:i+j] = 0
-	return tfreq
+				trackMags[i:i+j] = 0
+	return tfreq, tmag
 	
 
 def sineModel(x, fs, w, N, t):

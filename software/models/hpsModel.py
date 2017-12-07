@@ -11,7 +11,7 @@ import dftModel as DFT
 import stochasticModel as STM
 import utilFunctions as UF
 
-def hpsModelAnal(x, fs, w, N, H, t, nH, minf0, maxf0, f0et, harmDevSlope, minSineDur, Ns, stocf):
+def hpsModelAnal(x, fs, w, N, H, t, nH, minf0, maxf0, f0et, harmDevSlope, minSineDur, Ns, stocf, skimpeaks=0):
 	"""
 	Analysis of a sound using the harmonic plus stochastic model
 	x: input sound, fs: sampling rate, w: analysis window; N: FFT size, t: threshold in negative dB, 
@@ -19,10 +19,12 @@ def hpsModelAnal(x, fs, w, N, H, t, nH, minf0, maxf0, f0et, harmDevSlope, minSin
 	maxf0: maximim f0 frequency in Hz; f0et: error threshold in the f0 detection (ex: 5),
 	harmDevSlope: slope of harmonic deviation; minSineDur: minimum length of harmonics
 	returns hfreq, hmag, hphase: harmonic frequencies, magnitude and phases; stocEnv: stochastic residual
+        skimpeaks: boolean. If true, candidate peaks are limited to the range n*minf0 - n*maxf0, where n is an integer from 0 to 100.
+            This reduces the error of the Twm algorithm, allowing one to input a lower f0et.
 	"""
 
 	# perform harmonic analysis
-	hfreq, hmag, hphase = HM.harmonicModelAnal(x, fs, w, N, H, t, nH, minf0, maxf0, f0et, harmDevSlope, minSineDur)
+	hfreq, hmag, hphase = HM.harmonicModelAnal(x, fs, w, N, H, t, nH, minf0, maxf0, f0et, harmDevSlope, minSineDur, skimpeaks)
 	# subtract sinusoids from original sound
 	xr = UF.sineSubtraction(x, Ns, H, hfreq, hmag, hphase, fs)
 	# perform stochastic analysis of residual    	

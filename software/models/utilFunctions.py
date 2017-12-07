@@ -253,7 +253,7 @@ def cleaningTrack(track, minTrackLength=3):
 	return cleanTrack
 
 
-def f0Twm(pfreq, pmag, ef0max, minf0, maxf0, f0t=0):
+def f0Twm(pfreq, pmag, ef0max, minf0, maxf0, t, f0t=0, skimpeaks=0):
 	"""
 	Function that wraps the f0 detection function TWM, selecting the possible f0 candidates
 	and calling the function TWM with them
@@ -261,6 +261,8 @@ def f0Twm(pfreq, pmag, ef0max, minf0, maxf0, f0t=0):
 	ef0max: maximum error allowed, minf0, maxf0: minimum  and maximum f0
 	f0t: f0 of previous frame if stable
 	returns f0: fundamental frequency in Hz
+        skimpeaks: boolean. If true, candidate peaks are limited to the range n*minf0 - n*maxf0, where n is an integer from 0 to 100.
+            This reduces the error of the Twm algorithm, allowing one to input a lower f0et.
 	"""
 	if (minf0 < 0):                                  # raise exception if minf0 is smaller than 0
 		raise ValueError("Minumum fundamental frequency (minf0) smaller than 0")
@@ -271,11 +273,26 @@ def f0Twm(pfreq, pmag, ef0max, minf0, maxf0, f0t=0):
 	if (pfreq.size < 3) & (f0t == 0):                # return 0 if less than 3 peaks and not previous f0
 		return 0
 
+        # This paragraph adds in peaks that are half the frequency of the 3 maximum amplitude peaks.
+        # Useful for sounds with a missing fundamental.
+        pmagcopy = np.copy(pmag)
+        max3arg = pmagcopy.argsort()[-3:][::-1]          # Find 3 peaks with max amplitudes
+        pmagmax3 = pmagcopy[max3arg]
+        pfreqmax3 = pfreq[max3arg]
+        newcandidates3 = pfreqmax3/2.                    # Halve their frequency
+
 	f0c = np.argwhere((pfreq>minf0) & (pfreq<maxf0))[:,0] # use only peaks within given range
-	if (f0c.size == 0):                              # return 0 if no peaks within range
-		return 0
+        f0c2 = np.argwhere((pfreq>minf0) & (pfreq<2*maxf0))[:,0] # double the max freq
+        if (f0c2.size == 0):                              # return 0 if no peaks within 2x of range
+            return 0
 	f0cf = pfreq[f0c]                                # frequencies of peak candidates
 	f0cm = pmag[f0c]                                 # magnitude of peak candidates
+        for n in newcandidates3:                         # Add to candidate list if within range
+            if ((n>minf0) & (n<maxf0)):
+                f0cf = np.append(f0cf, n)
+                f0cm = np.append(f0cm, t)
+        if (f0cf.size == 0):
+            return 0
 
 	if f0t>0:                                        # if stable f0 in previous frame
 		shortlist = np.argwhere(np.abs(f0cf-f0t)<f0t/2.0)[:,0]   # use only peaks close to it
@@ -289,6 +306,27 @@ def f0Twm(pfreq, pmag, ef0max, minf0, maxf0, f0t=0):
 
 	if (f0cf.size == 0):                             # return 0 if no peak candidates
 		return 0
+
+        if (skimpeaks == 1):
+            nH_totry = 100
+            hfreq_min = np.arange(1, nH_totry+1)*minf0      # Min of range
+            hfreq_max = np.arange(1, nH_totry+1)*maxf0      # Max of range
+            pfreq_pass = np.zeros_like(pfreq)
+            for p in range(0, len(pfreq)):
+                h = 0
+                totry = 1
+                while ( (totry == 1) & (h < nH_totry) ):
+                    if ( (pfreq[p] > hfreq_min[h]) and (pfreq[p] < hfreq_max[h]) ):
+                        pfreq_pass[p] = 1                    # Only consider candidates within range
+                        totry == 0
+                    h += 1
+
+            pfreq_skimmed = pfreq[np.where( pfreq_pass == 1 )]
+            pmag_skimmed = pmag[np.where( pfreq_pass == 1 )]
+        
+        else:
+            pfreq_skimmed = pfreq
+            pmag_skimmed = pmag
 
 	f0, f0error = UF_C.twm(pfreq, pmag, f0cf)        # call the TWM function with peak candidates
 
