@@ -9,7 +9,7 @@ import utilFunctions as UF
 import hprModel as HPR
 import stft as STFT
 
-def main(inputFile='../../sounds/sax-phrase-short.wav', window='blackman', M=601, N=1024, t=-100,
+def main(inputFile='../../sounds/sax-phrase-short.wav', window='blackman', M=601, N=1024, H=256, t=-100,
 	minSineDur=0.1, nH=100, minf0=350, maxf0=700, f0et=5, harmDevSlope=0.01):
 	"""
 	Perform analysis/synthesis using the harmonic plus residual model
@@ -23,10 +23,11 @@ def main(inputFile='../../sounds/sax-phrase-short.wav', window='blackman', M=601
 	"""
 
 	# size of fft used in synthesis
-	Ns = 512
+	#Ns = 512
+        Ns = 4*H
 
 	# hop size (has to be 1/4 of Ns)
-	H = 128
+	#H = 128
 
 	# read input sound
 	(fs, x) = UF.wavread(inputFile)
@@ -36,6 +37,9 @@ def main(inputFile='../../sounds/sax-phrase-short.wav', window='blackman', M=601
 
 	# find harmonics and residual
 	hfreq, hmag, hphase, xr = HPR.hprModelAnal(x, fs, w, N, H, t, minSineDur, nH, minf0, maxf0, f0et, harmDevSlope)
+
+        # compute spectrogram of sound
+        mX, pX = STFT.stftAnal(x, w, N, H)
 
 	# compute spectrogram of residual
 	mXr, pXr = STFT.stftAnal(xr, w, N, H)
@@ -59,6 +63,7 @@ def main(inputFile='../../sounds/sax-phrase-short.wav', window='blackman', M=601
 	# frequency range to plot
 	maxplotfreq = 5000.0
 
+        """
 	# plot the input sound
 	plt.subplot(3,1,1)
 	plt.plot(np.arange(x.size)/float(fs), x)
@@ -66,6 +71,18 @@ def main(inputFile='../../sounds/sax-phrase-short.wav', window='blackman', M=601
 	plt.ylabel('amplitude')
 	plt.xlabel('time (sec)')
 	plt.title('input sound: x')
+        """
+
+        # plot magnitude spectrogram
+        plt.subplot(3,1,1)
+        numFrames = int(mX[:,0].size)
+        frmTime = H*np.arange(numFrames)/float(fs)
+        binFreq = fs*np.arange(N*maxplotfreq/fs)/N
+        plt.pcolormesh(frmTime, binFreq, np.transpose(mX[:,:N*maxplotfreq/fs+1]))
+        plt.xlabel('time (sec)')
+        plt.ylabel('frequency (Hz)')
+        plt.title('magnitude spectrogram')
+        plt.autoscale(tight=True)
 
 	# plot the magnitude spectrogram of residual
 	plt.subplot(3,1,2)
@@ -88,6 +105,16 @@ def main(inputFile='../../sounds/sax-phrase-short.wav', window='blackman', M=601
 		plt.autoscale(tight=True)
 		plt.title('harmonics + residual spectrogram')
 
+        # plot magnitudes of harmonics
+        plt.subplot(3,1,3)
+        if (hmag.shape[1] > 0):
+            numFrames = hmag.shape[0]
+            frmTime = H*np.arange(numFrames)/float(fs)
+            plt.plot(frmTime, hmag)
+            plt.axis([0, x.size/float(fs), -100, -10])
+            plt.title('magnitudes of harmonic tracks')
+
+        """
 	# plot the output sound
 	plt.subplot(3,1,3)
 	plt.plot(np.arange(y.size)/float(fs), y)
@@ -95,6 +122,7 @@ def main(inputFile='../../sounds/sax-phrase-short.wav', window='blackman', M=601
 	plt.ylabel('amplitude')
 	plt.xlabel('time (sec)')
 	plt.title('output sound: y')
+        """
 
 	plt.tight_layout()
 	plt.ion()
