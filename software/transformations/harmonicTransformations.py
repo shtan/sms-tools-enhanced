@@ -4,7 +4,7 @@ import numpy as np
 from scipy.signal import resample
 from scipy.interpolate import interp1d
 
-def harmonicFreqScaling(hfreq, hmag, freqScaling, freqStretching, timbrePreservation, fs):
+def harmonicFreqScaling(hfreq, hmag, freqScaling, freqStretching, timbrePreservation, fs, timbreScaling=1.0):
 	"""
 	Frequency scaling of the harmonics of a sound
 	hfreq, hmag: frequencies and magnitudes of input harmonics
@@ -38,10 +38,18 @@ def harmonicFreqScaling(hfreq, hmag, freqScaling, freqStretching, timbrePreserva
 			# values of harmonic magnitudes to be considered for interpolation 
 			y_vals = np.append(np.append(hmag[l,0], hmag[l,ind_valid]),hmag[l,-1])     
 			specEnvelope = interp1d(x_vals, y_vals, kind = 'linear',bounds_error=False, fill_value=-100)
+		elif (timbrePreservation != 0) & (ind_valid.size > 1):             # shift the formants
+			# values of harmonic locations to be considered for interpolation
+			x_vals = np.append(np.append(0, (hfreq[l,ind_valid])*timbreScaling),fs/2)    
+			# values of harmonic magnitudes to be considered for interpolation 
+			y_vals = np.append(np.append(hmag[l,0], hmag[l,ind_valid]),hmag[l,-1])     
+			specEnvelope = interp1d(x_vals, y_vals, kind = 'linear',bounds_error=False, fill_value=-100)	
 		yhfreq[l,ind_valid] = hfreq[l,ind_valid] * freqScalingEnv[l]       # scale frequencies
 		yhfreq[l,ind_valid] = yhfreq[l,ind_valid] * (freqStretchingEnv[l]**ind_valid) # stretch frequencies
 		if (timbrePreservation == 1) & (ind_valid.size > 1):               # if timbre preservation
 			yhmag[l,ind_valid] = specEnvelope(yhfreq[l,ind_valid])           # change amplitudes to maintain timbre
+		elif (timbrePreservation != 0) & (ind_valid.size > 1):             # if shift formants
+		    yhmag[l,ind_valid] = specEnvelope(yhfreq[l,ind_valid])           # change amplitudes to new formants
 		else:
 			yhmag[l,ind_valid] = hmag[l,ind_valid]                           # use same amplitudes as input
 	return yhfreq, yhmag

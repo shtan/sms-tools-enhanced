@@ -104,7 +104,8 @@ def analysis(inputFile='../../sounds/sax-phrase-short.wav', window='blackman', M
 
 def transformation_synthesis(inputFile, fs, hfreq, hmag, mYst, freqScaling = np.array([0, 1.2, 2.01, 1.2, 2.679, .7, 3.146, .7]), 
 	freqStretching = np.array([0, 1, 2.01, 1, 2.679, 1.5, 3.146, 1.5]), timbrePreservation = 1, 
-	timeScaling = np.array([0, 0, 2.138, 2.138-1.0, 3.146, 3.146])):
+	timeScaling = np.array([0, 0, 2.138, 2.138-1.0, 3.146, 3.146]),
+	timbreScaling = 1., outfolder = ''):
 	"""
 	transform the analysis values returned by the analysis function and synthesize the sound
 	inputFile: name of input file
@@ -133,8 +134,13 @@ def transformation_synthesis(inputFile, fs, hfreq, hmag, mYst, freqScaling = np.
 	y, yh, yst = HPS.hpsModelSynth(yhfreq, yhmag, np.array([]), ystocEnv, Ns, H, fs)
 
 	# write output sound 
-	outputFile = 'output_sounds/' + os.path.basename(inputFile)[:-4] + '_hpsModelTransformation.wav'
+	outputFile = 'output_sounds/' + folder + '/' + os.path.basename(inputFile)[:-4] + '_hpsModelTransformation.wav'
 	UF.wavwrite(y,fs, outputFile)
+	
+	outputFileSines = 'output_sounds/' + folder + '/' + os.path.basename(inputFile)[:-4] + '_hpsModelTransformation_sines.wav'
+	outputFileStochastic = 'output_sounds/' + folder + '/' + os.path.basename(inputFile)[:-4] + '_hpsModelTransformation_stochastic.wav'
+	UF.wavwrite(yh, fs, outputFileSines)
+	UF.wavwrite(yst, fs, outputFileStochastic)
 
 	# create figure to plot
 	plt.figure(figsize=(12, 6))
