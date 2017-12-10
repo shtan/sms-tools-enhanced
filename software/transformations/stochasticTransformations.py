@@ -27,10 +27,13 @@ def stochasticTimeScale(stocEnv, timeScaling):
 
 def stochasticTimbreScale(stocEnv_nodecimate, timbreScalingStoc, maxFreqFrac, stocf):
     """
-    Stochastic analysis of a sound
-    x: input array sound, H: hop size, N: fftsize
-    stocf: decimation factor of mag spectrum for stochastic analysis, bigger than 0, maximum of 1
-    returns stocEnv: stochastic envelope
+    Scales timbre of stochastic envelope
+    stocEnv_nodecimate: undecimated FFT of stochastic part
+    timbreScalingStoc: timbre scaling factor
+    maxFreqFrac: Frequency above which no scaling occurs
+    stocf: stochastic decimation factor to apply to scaled stochastic envelope
+    
+    Returns scaled and decimated stochastic envelope
     """
     
     L = stocEnv_nodecimate.shape[0]                           # Number of time frames
