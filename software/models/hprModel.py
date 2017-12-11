@@ -9,6 +9,7 @@ import harmonicModel as HM
 import dftModel as DFT
 import utilFunctions as UF
 import sineModel as SM
+from scipy.signal import hanning, resample
 
 def hprModelAnal(x, fs, w, N, H, t, minSineDur, nH, minf0, maxf0, f0et, harmDevSlope, skimpeaks=0):
 	"""Analysis of a sound using the harmonic plus residual model
@@ -114,3 +115,33 @@ def hprModel(x, fs, w, N, t, nH, minf0, maxf0, f0et):
 	y = yh+xr                                                    # sum of harmonic and residual components
 	return y, yh, xr
  
+def residualModelSynth(mXres, H, N):
+    """
+    Residual synthesis of a sound
+    mXres: amplitudes of DFT spectrum; H: hop size; N: fft size
+    returns y: output sound
+    """
+
+    if not(UF.isPower2(N)):                                     # raise error if N not a power of two
+        raise ValueError("N is not a power of two")
+ 
+    hN = N/2+1                                                  # positive size of fft
+    No2 = N/2                                                   # half of N
+    L = mXres[:,0].size                                     # number of frames
+    ysize = H*(L+3)                                             # output sound size
+    y = np.zeros(ysize)                                         # initialize output array
+    ws = 2*hanning(N)                                           # synthesis window
+    pout = 0                                                    # output sound pointer
+    for l in range(L):                    
+        mY = resample(mXres[l,:], hN)                        # interpolate to synthesis N size
+        #mY = np.copy(mXres)
+        pY = 2*np.pi*np.random.rand(hN)                        # generate phase random values
+        Y = np.zeros(N, dtype = complex)                       # initialize synthesis spectrum
+        Y[:hN] = 10**(mY/20) * np.exp(1j*pY)                   # generate positive freq.
+        Y[hN:] = 10**(mY[-2:0:-1]/20) * np.exp(-1j*pY[-2:0:-1]) # generate negative freq.
+        fftbuffer = np.real(ifft(Y))                           # inverse FFT
+        y[pout:pout+N] += ws*fftbuffer                         # overlap-add
+        pout += H  
+    y = np.delete(y, range(No2))                              # delete half of first window
+    y = np.delete(y, range(y.size-No2, y.size))               # delete half of the last window 
+    return y
